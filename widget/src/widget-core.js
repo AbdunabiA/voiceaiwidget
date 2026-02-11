@@ -12,6 +12,7 @@ export class WidgetCore {
     this.conversationHistory = [];
     this.language = 'auto';
     this.isOpen = false;
+    this.greetingShown = false;
   }
 
   init() {
@@ -57,7 +58,8 @@ export class WidgetCore {
     this.isOpen = !this.isOpen;
     if (this.isOpen) {
       this.chatUI.showPanel();
-      if (this.conversationHistory.length === 0) {
+      if (!this.greetingShown) {
+        this.greetingShown = true;
         const greeting = this.getGreeting();
         this.chatUI.addMessage('assistant', greeting);
         this.conversationHistory.push({ role: 'assistant', content: greeting });
