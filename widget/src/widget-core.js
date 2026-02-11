@@ -59,22 +59,35 @@ export class WidgetCore {
     if (this.isOpen) {
       this.chatUI.showPanel();
       if (this.conversationHistory.length === 0) {
-        const greetings = {
-          en: this.config.greeting_message || 'Hello! How can I help you?',
-          ru: 'Здравствуйте! Чем могу помочь?',
-          uz: 'Salom! Sizga qanday yordam bera olaman?',
-        };
-        const greeting = greetings[this.language] || greetings.en;
+        const greeting = this.getGreeting();
         this.chatUI.addMessage('assistant', greeting);
+        this.conversationHistory.push({ role: 'assistant', content: greeting });
       }
     } else {
       this.chatUI.hidePanel();
     }
   }
 
+  getGreeting() {
+    const greetings = {
+      en: this.config.greeting_message || 'Hello! How can I help you?',
+      ru: 'Здравствуйте! Чем могу помочь?',
+      uz: 'Salom! Sizga qanday yordam bera olaman?',
+    };
+    return greetings[this.language] || greetings.en;
+  }
+
   setLanguage(lang) {
     this.language = lang;
     this.config._currentLanguage = lang;
+    this.chatUI.updateLanguage(lang);
+
+    // Update greeting if it's the only message
+    if (this.conversationHistory.length === 1 && this.conversationHistory[0].role === 'assistant') {
+      const greeting = this.getGreeting();
+      this.conversationHistory[0].content = greeting;
+      this.chatUI.replaceFirstMessage(greeting);
+    }
   }
 
   async handleMicPress() {

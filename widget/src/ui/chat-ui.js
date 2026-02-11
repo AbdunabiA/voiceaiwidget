@@ -4,6 +4,33 @@ import { MicButton } from './mic-button.js';
 const MIC_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`;
 const CLOSE_SVG = `&times;`;
 
+const I18N = {
+  en: {
+    title: 'AI Assistant',
+    placeholder: 'Or type here...',
+    idle: 'Tap mic to speak',
+    listening: 'Listening...',
+    processing: 'Thinking...',
+    speaking: 'Speaking...',
+  },
+  ru: {
+    title: 'AI Ассистент',
+    placeholder: 'Или напишите...',
+    idle: 'Нажмите на микрофон',
+    listening: 'Слушаю...',
+    processing: 'Думаю...',
+    speaking: 'Говорю...',
+  },
+  uz: {
+    title: 'AI Yordamchi',
+    placeholder: 'Yoki yozing...',
+    idle: 'Mikrofon bosing',
+    listening: 'Tinglayapman...',
+    processing: 'O\'ylayapman...',
+    speaking: 'Gapiryapman...',
+  },
+};
+
 export class ChatUI {
   constructor(config, callbacks) {
     this.config = config;
@@ -12,6 +39,8 @@ export class ChatUI {
     this.panel = null;
     this.messagesArea = null;
     this.micButton = null;
+    this.currentLanguage = 'en';
+    this.currentVoiceState = 'idle';
   }
 
   render() {
@@ -123,19 +152,15 @@ export class ChatUI {
   }
 
   setVoiceState(state) {
+    this.currentVoiceState = state;
     const micBtn = this.panel.querySelector('#mic-btn');
     const statusText = this.panel.querySelector('.status-text');
 
     micBtn.className = 'mic-button';
     if (state !== 'idle') micBtn.classList.add(state);
 
-    const labels = {
-      idle: 'Tap mic to speak',
-      listening: 'Listening...',
-      processing: 'Thinking...',
-      speaking: 'Speaking...',
-    };
-    statusText.textContent = labels[state] || '';
+    const t = I18N[this.currentLanguage] || I18N.en;
+    statusText.textContent = t[state] || '';
 
     if (this.micButton) this.micButton.setState(state);
   }
@@ -146,6 +171,26 @@ export class ChatUI {
     langBtns.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.lang === lang);
     });
+    this.updateLanguage(lang);
+  }
+
+  updateLanguage(lang) {
+    this.currentLanguage = lang;
+    const t = I18N[lang] || I18N.en;
+
+    const title = this.panel?.querySelector('.title');
+    if (title) title.textContent = t.title;
+
+    const textInput = this.panel?.querySelector('#text-input');
+    if (textInput) textInput.placeholder = t.placeholder;
+
+    const statusText = this.panel?.querySelector('.status-text');
+    if (statusText) statusText.textContent = t[this.currentVoiceState] || '';
+  }
+
+  replaceFirstMessage(text) {
+    const firstMsg = this.messagesArea?.querySelector('.message.assistant');
+    if (firstMsg) firstMsg.textContent = text;
   }
 
   getCanvas() {
