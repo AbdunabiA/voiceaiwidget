@@ -92,8 +92,11 @@ export class WidgetCore {
 
   async handleMicPress() {
     if (!this.voiceManager) return;
-    // Stop AI speech if playing
-    this.voiceManager.stopSpeaking();
+    // If AI is speaking, just stop it — don't start recording
+    if (this.voiceManager.state === 'speaking') {
+      this.voiceManager.stopSpeaking();
+      return;
+    }
     try {
       await this.voiceManager.startListening();
     } catch (err) {
@@ -144,10 +147,10 @@ export class WidgetCore {
       // Use server audio if available, otherwise browser TTS
       const ttsLang = result.language || this.language || 'en';
       if (result.audio && result.audio.length > 0 && this.voiceManager) {
-        this.chatUI.setVoiceState('speaking');
+        this.voiceManager.setState('speaking');
         await this.voiceManager.playAudio(result.audio, result.audio_format);
       } else if ('speechSynthesis' in window) {
-        this.chatUI.setVoiceState('speaking');
+        this.voiceManager.setState('speaking');
         await new Promise((resolve) => {
           const u = new SpeechSynthesisUtterance(result.text);
           const langMap = { uz: 'uz-UZ', ru: 'ru-RU', en: 'en-US' };
