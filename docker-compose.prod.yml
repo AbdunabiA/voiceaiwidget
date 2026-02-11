@@ -24,6 +24,24 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./gcloud-key.json:/app/gcloud-key.json:ro
+    labels:
+      - "traefik.enable=true"
+      # api.voiceai.uz → backend:8000
+      - "traefik.http.routers.voiceai-api.rule=Host(`api.voiceai.uz`)"
+      - "traefik.http.routers.voiceai-api.entrypoints=websecure"
+      - "traefik.http.routers.voiceai-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.voiceai-api.service=voiceai-backend"
+      # widget.voiceai.uz → backend:8000
+      - "traefik.http.routers.voiceai-widget.rule=Host(`widget.voiceai.uz`)"
+      - "traefik.http.routers.voiceai-widget.entrypoints=websecure"
+      - "traefik.http.routers.voiceai-widget.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.voiceai-widget.service=voiceai-backend"
+      - "traefik.http.routers.voiceai-widget.middlewares=widget-cors"
+      # shared service definition
+      - "traefik.http.services.voiceai-backend.loadbalancer.server.port=8000"
+      # CORS middleware for widget
+      - "traefik.http.middlewares.widget-cors.headers.accesscontrolalloworiginlist=*"
+      - "traefik.http.middlewares.widget-cors.headers.accesscontrolallowmethods=GET,OPTIONS"
     depends_on:
       - postgres
     restart: unless-stopped
@@ -33,6 +51,12 @@ services:
   dashboard:
     image: ghcr.io/abdunobia/voiceaiwidget/dashboard:latest
     container_name: voiceai_dashboard
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.voiceai-app.rule=Host(`app.voiceai.uz`)"
+      - "traefik.http.routers.voiceai-app.entrypoints=websecure"
+      - "traefik.http.routers.voiceai-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.voiceai-dashboard.loadbalancer.server.port=3000"
     restart: unless-stopped
     networks:
       - webproxy

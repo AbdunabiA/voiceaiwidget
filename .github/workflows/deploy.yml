@@ -26,17 +26,23 @@ jobs:
             set -e
             cd /opt/voiceai
 
-            # Pull latest compose file and nginx config
+            # Pull latest compose files and config
             git pull origin main
 
-            # Log in to GHCR and pull new images
+            # Log in to GHCR
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
-            docker compose -f docker-compose.prod.yml pull
 
-            # Restart services with new images
+            # Ensure shared network exists
+            docker network inspect webproxy >/dev/null 2>&1 || docker network create webproxy
+
+            # Ensure Traefik is running
+            docker compose -f docker-compose.traefik.yml up -d
+
+            # Pull and restart voiceai services
+            docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
-            # Wait for backend to be healthy
+            # Health check
             echo "Waiting for backend..."
             sleep 10
             docker exec voiceai_backend python -c "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health'); print(r.read().decode())"
