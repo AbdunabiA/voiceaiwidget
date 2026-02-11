@@ -18,8 +18,7 @@ export class WidgetCore {
     const support = checkBrowserSupport();
     this.chatUI = new ChatUI(this.config, {
       onToggle: () => this.toggle(),
-      onMicPress: () => this.handleMicPress(),
-      onMicRelease: () => this.handleMicRelease(),
+      onMicToggle: () => this.handleMicToggle(),
       onTextSend: (text) => this.handleTextSend(text),
       onLanguageChange: (lang) => this.setLanguage(lang),
     });
@@ -90,23 +89,24 @@ export class WidgetCore {
     }
   }
 
-  async handleMicPress() {
+  async handleMicToggle() {
     if (!this.voiceManager) return;
-    // If AI is speaking, just stop it — don't start recording
+
     if (this.voiceManager.state === 'speaking') {
       this.voiceManager.stopSpeaking();
       return;
     }
+
+    if (this.voiceManager.state === 'listening') {
+      this.voiceManager.stopListening();
+      return;
+    }
+
     try {
       await this.voiceManager.startListening();
     } catch (err) {
       console.error('[VoiceAI] Mic error:', err);
     }
-  }
-
-  handleMicRelease() {
-    if (!this.voiceManager) return;
-    this.voiceManager.stopListening();
   }
 
   async handleTextSend(text) {

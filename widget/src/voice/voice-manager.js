@@ -1,6 +1,10 @@
 import { AudioPlayer } from './audio-player.js';
 import { ApiClient } from '../api/client.js';
 
+const SILENCE_THRESHOLD = 0.02;
+const SILENCE_DURATION_MS = 2000;
+const SILENCE_CHECK_INTERVAL_MS = 150;
+
 export class VoiceManager {
   constructor(apiKey, apiBase, config) {
     this.apiClient = new ApiClient(apiBase, apiKey);
@@ -15,6 +19,10 @@ export class VoiceManager {
     this.audioChunks = [];
     this.stream = null;
     this.useBrowserTTS = 'speechSynthesis' in window;
+    this._silenceTimer = null;
+    this._silenceCheckInterval = null;
+    this._audioContext = null;
+    this._analyser = null;
   }
 
   setState(state) {
@@ -53,6 +61,7 @@ export class VoiceManager {
     };
 
     this.mediaRecorder.onstop = async () => {
+      this._stopSilenceDetection();
       this._stopMicStream();
       if (this.audioChunks.length === 0) {
         this.setState('idle');
@@ -62,14 +71,71 @@ export class VoiceManager {
       await this._transcribeAndProcess(blob);
     };
 
-    this.mediaRecorder.start();
+    this.mediaRecorder.start(250); // collect in 250ms chunks for timely data
     this.setState('listening');
+    this._startSilenceDetection();
   }
 
   stopListening() {
+    this._stopSilenceDetection();
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
       this.mediaRecorder.stop();
     }
+  }
+
+  _startSilenceDetection() {
+    if (!this.stream) return;
+
+    try {
+      this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = this._audioContext.createMediaStreamSource(this.stream);
+      this._analyser = this._audioContext.createAnalyser();
+      this._analyser.fftSize = 512;
+      source.connect(this._analyser);
+
+      const dataArray = new Float32Array(this._analyser.fftSize);
+      let silentSince = null;
+      let hasSpoken = false;
+
+      this._silenceCheckInterval = setInterval(() => {
+        if (this.state !== 'listening') {
+          this._stopSilenceDetection();
+          return;
+        }
+
+        this._analyser.getFloatTimeDomainData(dataArray);
+        let rms = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          rms += dataArray[i] * dataArray[i];
+        }
+        rms = Math.sqrt(rms / dataArray.length);
+
+        if (rms > SILENCE_THRESHOLD) {
+          hasSpoken = true;
+          silentSince = null;
+        } else if (hasSpoken) {
+          if (!silentSince) {
+            silentSince = Date.now();
+          } else if (Date.now() - silentSince >= SILENCE_DURATION_MS) {
+            this.stopListening();
+          }
+        }
+      }, SILENCE_CHECK_INTERVAL_MS);
+    } catch (err) {
+      console.warn('[VoiceAI] Silence detection unavailable:', err);
+    }
+  }
+
+  _stopSilenceDetection() {
+    if (this._silenceCheckInterval) {
+      clearInterval(this._silenceCheckInterval);
+      this._silenceCheckInterval = null;
+    }
+    if (this._audioContext && this._audioContext.state !== 'closed') {
+      this._audioContext.close().catch(() => {});
+      this._audioContext = null;
+    }
+    this._analyser = null;
   }
 
   _stopMicStream() {

@@ -104,10 +104,7 @@ export class ChatUI {
 
     closeBtn.addEventListener('click', () => this.callbacks.onToggle());
 
-    micBtn.addEventListener('mousedown', () => this.callbacks.onMicPress());
-    micBtn.addEventListener('mouseup', () => this.callbacks.onMicRelease());
-    micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.callbacks.onMicPress(); });
-    micBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.callbacks.onMicRelease(); });
+    micBtn.addEventListener('click', () => this.callbacks.onMicToggle());
 
     const sendText = () => {
       const text = textInput.value.trim();
