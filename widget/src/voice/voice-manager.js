@@ -2,7 +2,7 @@ import { AudioPlayer } from './audio-player.js';
 import { ApiClient } from '../api/client.js';
 
 const SILENCE_THRESHOLD = 0.02;
-const SILENCE_DURATION_MS = 2000;
+const SILENCE_DURATION_MS = 3500;
 const SILENCE_CHECK_INTERVAL_MS = 150;
 
 export class VoiceManager {
