@@ -91,16 +91,20 @@ export class WidgetCore {
 
   async handleMicToggle() {
     if (!this.voiceManager) return;
+    const state = this.voiceManager.state;
 
-    if (this.voiceManager.state === 'speaking') {
+    if (state === 'speaking') {
       this.voiceManager.stopSpeaking();
       return;
     }
 
-    if (this.voiceManager.state === 'listening') {
+    if (state === 'listening') {
       this.voiceManager.stopListening();
       return;
     }
+
+    // Don't allow recording while processing a previous request
+    if (state === 'processing') return;
 
     try {
       await this.voiceManager.startListening();
@@ -165,6 +169,6 @@ export class WidgetCore {
       this.chatUI.addMessage('assistant', 'Sorry, something went wrong. Please try again.');
     }
 
-    this.chatUI.setVoiceState('idle');
+    this.voiceManager.setState('idle');
   }
 }
