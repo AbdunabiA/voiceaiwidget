@@ -6,97 +6,94 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  REGISTRY: ghcr.io
+
 jobs:
-  build-backend:
-    name: Build Backend
+  build-and-push-backend:
+    name: Backend image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - name: Lowercase image name
+        run: echo "IMAGE_BASE=${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          python-version: "3.11"
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
-
-      - name: Check syntax errors
-        run: |
-          cd backend
-          python -m py_compile app/main.py
-          python -m py_compile app/config.py
-          python -m py_compile worker.py
-
-      - name: Build Docker image
-        run: docker build -t voiceai-backend ./backend
-
-  build-dashboard:
-    name: Build Dashboard
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          node-version: "20"
+          context: .
+          file: Dockerfile.backend
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/backend:latest
+            ${{ env.IMAGE_BASE }}/backend:${{ github.sha }}
 
-      - name: Install dependencies
-        run: |
-          cd dashboard
-          npm ci
-
-      - name: Type check
-        run: |
-          cd dashboard
-          npx tsc --noEmit
-
-      - name: Build
-        run: |
-          cd dashboard
-          npm run build
-
-  build-widget:
-    name: Build Widget
+  build-and-push-dashboard:
+    name: Dashboard image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - name: Lowercase image name
+        run: echo "IMAGE_BASE=${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: "20"
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          cd widget
-          npm ci
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./dashboard
+          file: ./dashboard/Dockerfile
+          build-args: VITE_API_URL=/api/v1
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/dashboard:latest
+            ${{ env.IMAGE_BASE }}/dashboard:${{ github.sha }}
 
-      - name: Build
-        run: |
-          cd widget
-          npx webpack --mode production
-
-      - name: Verify output
-        run: test -f widget/dist/widget.js
-
-  build-crawler:
-    name: Build Crawler Image
+  build-and-push-crawler:
+    name: Crawler image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t voiceai-crawler -f backend/Dockerfile.crawler ./backend
+      - name: Lowercase image name
+        run: echo "IMAGE_BASE=${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
-  docker-compose-check:
-    name: Validate Compose
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate docker-compose.prod.yml
-        run: docker compose -f docker-compose.prod.yml config --quiet
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.crawler
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/crawler:latest
+            ${{ env.IMAGE_BASE }}/crawler:${{ github.sha }}

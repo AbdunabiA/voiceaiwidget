@@ -13,7 +13,7 @@ services:
       - webproxy
 
   backend:
-    build: ./backend
+    image: ghcr.io/abdunobia/voiceaiwidget/backend:latest
     container_name: voiceai_backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     environment:
@@ -23,8 +23,7 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
       JWT_SECRET: ${JWT_SECRET}
     volumes:
-      - ./widget/dist:/widget/dist:ro
-      - ./backend/gcloud-key.json:/app/gcloud-key.json:ro
+      - ./gcloud-key.json:/app/gcloud-key.json:ro
     depends_on:
       - postgres
     restart: unless-stopped
@@ -32,19 +31,14 @@ services:
       - webproxy
 
   dashboard:
-    build:
-      context: ./dashboard
-      args:
-        VITE_API_URL: /api/v1
+    image: ghcr.io/abdunobia/voiceaiwidget/dashboard:latest
     container_name: voiceai_dashboard
     restart: unless-stopped
     networks:
       - webproxy
 
   crawler-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.crawler
+    image: ghcr.io/abdunobia/voiceaiwidget/crawler:latest
     container_name: voiceai_crawler
     environment:
       DATABASE_URL: postgresql+asyncpg://voiceai:${DB_PASSWORD}@voiceai_postgres:5432/voiceai

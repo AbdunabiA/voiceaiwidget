@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+.env
+.env.*
+*.md
+gcloud-key.json
+dashboard/
+nginx/
+pgdata/
+certbot/
+backend/gcloud-key.json
+backend/.venv
+backend/venv
+widget/node_modules

@@ -1,7 +1,9 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -9,7 +11,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: []
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment: production
 
     steps:
@@ -22,30 +24,24 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             set -e
-
             cd /opt/voiceai
 
-            # Pull latest code
+            # Pull latest compose file and nginx config
             git pull origin main
 
-            # Build widget
-            cd widget
-            npm install --production=false
-            npx webpack --mode production
-            cd ..
+            # Log in to GHCR and pull new images
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull
 
-            # Rebuild and restart services
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            # Restart services with new images
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Wait for backend to be healthy
-            echo "Waiting for backend to start..."
+            echo "Waiting for backend..."
             sleep 10
+            docker exec voiceai_backend python -c "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health'); print(r.read().decode())"
 
-            # Health check
-            docker exec voiceai_backend curl -sf http://localhost:8000/health || {
-              echo "Health check failed!"
-              docker compose -f docker-compose.prod.yml logs backend --tail 50
-              exit 1
-            }
+            # Clean up old images
+            docker image prune -f
 
             echo "Deployment successful!"
