@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Check syntax errors
+        run: |
+          cd backend
+          python -m py_compile app/main.py
+          python -m py_compile app/config.py
+          python -m py_compile worker.py
+
+      - name: Build Docker image
+        run: docker build -t voiceai-backend ./backend
+
+  build-dashboard:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          cd dashboard
+          npm ci
+
+      - name: Type check
+        run: |
+          cd dashboard
+          npx tsc --noEmit
+
+      - name: Build
+        run: |
+          cd dashboard
+          npm run build
+
+  build-widget:
+    name: Build Widget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          cd widget
+          npm ci
+
+      - name: Build
+        run: |
+          cd widget
+          npx webpack --mode production
+
+      - name: Verify output
+        run: test -f widget/dist/widget.js
+
+  build-crawler:
+    name: Build Crawler Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t voiceai-crawler -f backend/Dockerfile.crawler ./backend
+
+  docker-compose-check:
+    name: Validate Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.prod.yml
+        run: docker compose -f docker-compose.prod.yml config --quiet

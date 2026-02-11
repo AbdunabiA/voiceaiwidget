@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voiceai_postgres
+    environment:
+      POSTGRES_DB: voiceai
+      POSTGRES_USER: voiceai
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - voiceai_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - webproxy
+
+  backend:
+    build: ./backend
+    container_name: voiceai_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://voiceai:${DB_PASSWORD}@voiceai_postgres:5432/voiceai
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcloud-key.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ./widget/dist:/widget/dist:ro
+      - ./backend/gcloud-key.json:/app/gcloud-key.json:ro
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - webproxy
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_URL: /api/v1
+    container_name: voiceai_dashboard
+    restart: unless-stopped
+    networks:
+      - webproxy
+
+  crawler-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.crawler
+    container_name: voiceai_crawler
+    environment:
+      DATABASE_URL: postgresql+asyncpg://voiceai:${DB_PASSWORD}@voiceai_postgres:5432/voiceai
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - webproxy
+
+volumes:
+  voiceai_pgdata:
+
+networks:
+  webproxy:
+    external: true

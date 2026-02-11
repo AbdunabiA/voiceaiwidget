@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: voiceai
+      POSTGRES_USER: voiceai
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://voiceai:${DB_PASSWORD}@postgres:5432/voiceai
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcloud-key.json
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ./backend:/app
+      - ./widget/dist:/widget/dist:ro
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      VITE_API_URL: ${API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+
+  crawler-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.crawler
+    environment:
+      DATABASE_URL: postgresql+asyncpg://voiceai:${DB_PASSWORD}@postgres:5432/voiceai
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+    depends_on:
+      - postgres
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./widget/dist:/usr/share/nginx/html/widget
+    depends_on:
+      - backend
+      - dashboard
+
+volumes:
+  pgdata:

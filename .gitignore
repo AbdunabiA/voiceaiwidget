@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.egg
+
+# Node
+node_modules/
+dist/
+build/
+
+# Environment
+.env
+gcloud-key.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+pgdata/
+
+# Logs
+*.log
+
+# Certificates
+certbot/
+
+# Claude Code
+.claude/

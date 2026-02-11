@@ -1,0 +1,10 @@
+gcloud-key.json
+__pycache__
+*.pyc
+.env
+.env.*
+*.egg-info
+.git
+.venv
+venv
+alembic/versions/__pycache__
