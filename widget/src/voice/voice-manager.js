@@ -22,6 +22,16 @@ export class VoiceManager {
     if (this.onStateChange) this.onStateChange(state);
   }
 
+  stopSpeaking() {
+    this.player.stop();
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+    if (this.state === 'speaking') {
+      this.setState('idle');
+    }
+  }
+
   async startListening() {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });

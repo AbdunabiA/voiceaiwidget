@@ -92,6 +92,8 @@ export class WidgetCore {
 
   async handleMicPress() {
     if (!this.voiceManager) return;
+    // Stop AI speech if playing
+    this.voiceManager.stopSpeaking();
     try {
       await this.voiceManager.startListening();
     } catch (err) {
